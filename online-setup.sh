@@ -29,7 +29,7 @@ else
 fi
 
 # Loop through candidate mount locations in priority order
-for MOUNT_DIR in "/media/hdd" "/media/mmc"; do
+for MOUNT_DIR in "/media/hdd" "/media/mmc" "/media/usb"; do
     if [ -d "$MOUNT_DIR" ] && mountpoint -q "$MOUNT_DIR"; then
         MY_PATH="${MOUNT_DIR}/"
         break
