@@ -39,7 +39,7 @@ done
 MyFile="${MY_PATH}File/"
 mkdir -p "${MyFile}"
 
-if [ -d "${MyFile}" ]; then
+if [ -d "${MY_PATH}" ]; then
     TorrServerDir="${MY_PATH}"
 else
     TorrServerDir="/usr/bin/"
