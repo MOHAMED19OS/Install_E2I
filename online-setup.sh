@@ -40,7 +40,7 @@ MyFile="${MY_PATH}File/"
 mkdir -p "${MyFile}"
 
 if [ -d "${MyFile}" ]; then
-    TorrServerDir="${MyFile}"
+    TorrServerDir="${MY_PATH}"
 else
     TorrServerDir="/usr/bin/"
 fi
@@ -49,7 +49,7 @@ TorrServerBinDir="${TorrServerDir}TorrServer"
 
 #########################
 DownTorrServer(){
-    [ -e "${TorrServerBinDir}" ] && rm -rf "${TorrServerBinDir}"
+    [ -e "${TorrServerBinDir}" ] && "${NICE}" -n 19 rm -rf "${TorrServerBinDir}"
     local TorrSerVersion="${1:-146}"
 
     case "$archRead" in
