@@ -178,6 +178,7 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
         [ -n "${SubSource_API_KEY:-}" ] && echo "config.plugins.iptvplayer.subsourceapi=${SubSource_API_KEY}"
         [ -n "${ArabP2P_LOGIN:-}" ] && echo "config.plugins.iptvplayer.arabp2p_login=${ArabP2P_LOGIN}"
         [ -n "${ArabP2P_PASSWORD:-}" ] && echo "config.plugins.iptvplayer.arabp2p_password=${ArabP2P_PASSWORD}"
+        [ -n "${Febbox_Token:-}" ] && echo "config.plugins.iptvplayer.showbox_febbox_token=${Febbox_Token}"
         echo "config.plugins.iptvplayer.CacheDir=${MY_PATH}IPTVCache/"
         echo "config.plugins.iptvplayer.ConfigDir=${MY_PATH}IPTVPlayer/"
         echo "config.plugins.iptvplayer.configMenuView=categories"
