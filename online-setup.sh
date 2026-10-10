@@ -20,9 +20,10 @@ exec > >(tee -a "$LOGFILE") 2>&1
 "${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"*
 
 SourcePath=$(find / -type f -name "retObj.conf" 2>/dev/null | head -n 1)
-
-# shellcheck source=/dev/null
-source "${SourcePath}"
+if [ -n "${SourcePath}" ]; then
+    # shellcheck source=/dev/null
+    source "${SourcePath}"
+fi
 
 # Loop through candidate mount locations in priority order
 for MOUNT_DIR in "/media/hdd" "/media/mmc" "/media/usb"; do
