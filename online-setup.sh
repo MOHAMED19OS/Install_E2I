@@ -13,13 +13,14 @@ LOGFILE="${TMPDIR}_e2iplayer_install.log"
 archRead=$(uname -m)
 NICE=/bin/nice
 
-[ -e ${LOGFILE} ] && rm -fr ${LOGFILE}
+[ -e "${LOGFILE}" ] && rm -fr "${LOGFILE}"
 exec > >(tee -a "$LOGFILE") 2>&1
 
 # If the script was already running but ended with an Error, delete any remains.
 "${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"*
 
-SourcePath=$(find / -type f -name "retObj.conf" 2>/dev/null | head -n 1)
+# Search for retObj.conf in specific directories instead of whole root "/"
+SourcePath=$(find /tmp /etc /media -type f -name "retObj.conf" 2>/dev/null | head -n 1)
 if [ -n "${SourcePath}" ]; then
     # shellcheck source=/dev/null
     source "${SourcePath}"
@@ -27,20 +28,24 @@ fi
 
 # Loop through candidate mount locations in priority order
 for MOUNT_DIR in "/media/hdd" "/media/mmc" "/media/usb"; do
-    if [ -d "$MOUNT_DIR" ] && mountpoint -q "$MOUNT_DIR"; then
+    if mountpoint -q "$MOUNT_DIR"; then
         MY_PATH="${MOUNT_DIR}/"
         break
     fi
 done
 
-MyFile="${MY_PATH}File/"
-mkdir -p "${MyFile}"
+# Fallback path if no mount point was found
+: "${MY_PATH:=/etc/enigma2/}"
 
-if [ -d "${MyFile}" ]; then
-    TorrServerDir="${MyFile}"
-else
-    TorrServerDir="/usr/bin/"
+MyFile="${MY_PATH}File/"
+
+# Exception for creating a File folder if the path is /etc/enigma2/
+if [ "${MY_PATH}" != "/etc/enigma2/" ]; then
+    mkdir -p "${MyFile}"
 fi
+
+TorrServerDir="${MyFile}"
+[ -d "${TorrServerDir}" ] || TorrServerDir="/usr/bin/"
 
 TorrServerBinDir="${TorrServerDir}TorrServer"
 
@@ -50,25 +55,21 @@ DownTorrServer(){
     local TorrSerVersion="${1:-146}"
 
     case "$archRead" in
-        armv7l)
-            torrArch="arm7"
-            ;;
-        mips|mipsel)
-            torrArch="mipsle"
-            ;;
-        aarch64)
-            torrArch="arm64"
-            ;;
+        armv7l)       torrArch="arm7" ;;
+        mips|mipsel)  torrArch="mipsle" ;;
+        aarch64)      torrArch="arm64" ;;
         *)
-            printf "Sorry Not Support Architecture: %s\n" "$archRead"
+            printf "Sorry, Unsupported Architecture: %s\n" "$archRead"
+            return 1
             ;;
     esac
+
     printf "Please Wait to install TorrServer (%s)\n" "${TorrSerVersion}"
 
     torrUrl="https://github.com/YouROK/TorrServer/releases/download/MatriX.${TorrSerVersion}/TorrServer-linux-${torrArch}"
 
     ${DOWNLOADER%-} "${TorrServerBinDir}" "${torrUrl}"
-    [ -e "${TorrServerBinDir}" ] && chmod +x "${TorrServerBinDir}" || printf "error downloading TorrServer, end\n"
+    [ -e "${TorrServerBinDir}" ] && chmod +x "${TorrServerBinDir}" || printf "Error downloading TorrServer!\n"
 }
 
 #########################
@@ -79,13 +80,13 @@ pkgInstall() {
         printf "Package not found in feed (%s)\n" "$1"
     else
         if ! grep -qs "Package: $1" '/var/lib/opkg/status'; then
-            printf "====|Please Wait to install (%s)|====" "$1"
-            sleep 0.8 && echo
+            printf "====|Please Wait to install (%s)|====\n" "$1"
             opkg install "$1"
-            sleep 0.8 && echo
+            sleep 0.8
         fi
     fi
 }
+
 #########################
 FileTar="python3.tar.gz"
 
@@ -94,7 +95,7 @@ ${DOWNLOADER%-} "${TMPDIR}${FileTar}" "${URL}/${FileTar}"
 
 if ! [ -e "${TMPDIR}${FileTar}" ]; then
     printf "error downloading archive, end\n"
-    printf "ABORT --- ( More Details in %s )" "$LOGFILE"
+    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
     exit 1
 else
     printf "Archive downloaded\n"
@@ -104,7 +105,7 @@ tar -xzf "${TMPDIR}${FileTar}" -C ${TMPDIR}
 if ! [ -e "${TMPDIR}e2iplayer-python3" ]; then
     printf "error extracting archive, end\n"
     "${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"*
-    printf "ABORT --- ( More Details in %s )" "$LOGFILE"
+    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
     exit 1
 else
     printf "Archive extracted\n"
@@ -124,7 +125,7 @@ find "${TMPDIR}e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -r
 
 if ! [ -e "${PLUGINPATH}IPTVPlayer" ]; then
     printf "error installing E2Iplayer, end\n"
-    printf "ABORT --- ( More Details in %s )" "$LOGFILE"
+    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
     exit 1
 else
     printf "E2Iplayer installed\n"
@@ -141,12 +142,11 @@ TorrOutput=$(${DOWNLOADER} "https://github.com/YouROK/TorrServer/tags" | grep -o
 
 WebVersion=$(echo "$TorrOutput" | grep -oE '[0-9]+(\.[0-9]+)*' | head -1)
 if [ -e "${TorrServerBinDir}" ]; then
-
     ! [ -x "${TorrServerBinDir}" ] && chmod +x "${TorrServerBinDir}"
     TorrVersion=$("${TorrServerBinDir}" --help 2>&1 | grep -oE 'TorrServer\s+MatriX\.[0-9.]+' | grep -oE '[0-9]+(\.[0-9]+)*')
 
-    if [[ "${WebVersion}" == "${TorrVersion}" ]];then
-        printf "TorrServer are Found :)\n" && sleep 0.8
+    if [[ "${WebVersion}" == "${TorrVersion}" ]]; then
+        printf "TorrServer is Found :)\n" && sleep 0.8
     else
         DownTorrServer "$WebVersion"
     fi
@@ -156,7 +156,7 @@ fi
 
 sleep 0.8
 if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
-    printf ":Your Device IS %s processor ..." "$archRead"
+    printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
     init 4 && sleep 2
     sed -i '/config\.plugins\.iptvplayer\./d' "${SETTINGS}"
@@ -187,6 +187,17 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
         echo "config.plugins.iptvplayer.showinSystemMenu=False"
         echo "config.plugins.iptvplayer.skinforceallinternal=True"
         echo "config.plugins.iptvplayer.storageExpertMode=True"
+        if [ -n "${TorrServer_Enabled:-}" ]; then
+            if [ "${MY_PATH}" != "/etc/enigma2/" ]; then
+                echo "config.plugins.iptvplayer.torrserver_cache_dir=${MY_PATH}IPTVCache/"
+                echo "config.plugins.iptvplayer.torrserver_cache_location=disk"
+            fi
+            echo "config.plugins.iptvplayer.torrserver_enabled=True"
+            echo "config.plugins.iptvplayer.torrserver_path=${TorrServerBinDir}"
+            echo "config.plugins.iptvplayer.torrserver_remove_cache=False"
+            echo "config.plugins.iptvplayer.torrserver_ul_limit=0"
+            echo "config.plugins.iptvplayer.torrserver_upload=True"
+        fi
         echo "config.plugins.iptvplayer.cookiesCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.jsCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.movieMetaDataCacheDeleteAfterDays=2"
@@ -202,16 +213,14 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
         echo "config.plugins.iptvplayer.IPTVWebIterface=True"
         echo "config.plugins.iptvplayer.moviePlayerPickerMode=extended"
         echo "config.plugins.iptvplayer.DownloadsDir=${MY_PATH}MoviePlayer/"
-        # echo "config.plugins.iptvplayer.osk_type=own"
         echo "config.plugins.iptvplayer.remember_last_position=true"
         [ -d "${MyFile}" ] && echo "config.plugins.iptvplayer.Sciezkaurllist=${MyFile}"
-        echo "config.plugins.iptvplayer.torrserver_path=${TorrServerBinDir}"
         $pyInterpreter -c "import pycurl" &> /dev/null && echo "config.plugins.iptvplayer.usepycurl=True"
         [ -n "${YouTube_Oauth:-}" ] && echo "config.plugins.iptvplayer.youtube_oauth_refresh_token=${YouTube_Oauth}"
         echo "config.plugins.iptvplayer.ytDefaultformat=9999"
         echo "config.plugins.iptvplayer.ytUseDF=False"
         echo "config.plugins.iptvplayer.ytVP9=True"
-    } >>${SETTINGS}
+    } >> "${SETTINGS}"
 fi
 
 init 3 && sleep 2
