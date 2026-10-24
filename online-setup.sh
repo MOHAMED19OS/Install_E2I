@@ -5,19 +5,25 @@ command -v python3 >/dev/null 2>&1 && pyInterpreter=python3 || pyInterpreter=pyt
 
 ###########################################
 # Configure where we can find things here #
-TMPDIR='/tmp/'
+TMP='/var/volatile/tmp'
+WORKDIR=/home/root/_workdir # Can be changed as desired, e.g. on HDD to /media/hdd/_workdir or just /media/hdd/dirname_as_desired.
 PLUGINPATH='/usr/lib/enigma2/python/Plugins/Extensions/'
 SETTINGS='/etc/enigma2/settings'
 URL='https://github.com/oe-mirrors/e2iplayer/archive/refs/heads'
-LOGFILE="${TMPDIR}_e2iplayer_install.log"
 archRead=$(uname -m)
 NICE=/bin/nice
 
-[ -e "${LOGFILE}" ] && rm -fr "${LOGFILE}"
-exec > >(tee -a "$LOGFILE") 2>&1
+# $TMP (/var/volatile/tmp) is a RAM Disk. On Boxes with little RAM (e.g. DM800SE) the Source Package
+# does not fit there ("No space left on device"), then use a tmp Directory in the Working Directory.
+TMP_NEEDED_KB=100000
+TMP_FREE_KB="$(df -Pk ${TMP} 2> /dev/null | tail -n 1 | awk '{print $4}')"
+if [ -z "$TMP_FREE_KB" ] || [ "$TMP_FREE_KB" -lt "$TMP_NEEDED_KB" ] ; then
+	TMP=$WORKDIR/tmp
+	mkdir -p "${TMP}"
+fi
 
 # If the script was already running but ended with an Error, delete any remains.
-"${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"*
+"${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
 
 # Search for retObj.conf in specific directories instead of whole root "/"
 SourcePath=$(find /tmp /etc /media -type f -name "retObj.conf" 2>/dev/null | head -n 1)
@@ -91,41 +97,44 @@ pkgInstall() {
 FileTar="python3.tar.gz"
 
 printf "Downloading E2iPlayer plugin Please Wait ......\n"
-${DOWNLOADER%-} "${TMPDIR}${FileTar}" "${URL}/${FileTar}"
+${DOWNLOADER%-} "${TMP}/${FileTar}" "${URL}/${FileTar}"
 
-if ! [ -e "${TMPDIR}${FileTar}" ]; then
+if ! [ -e "${TMP}/${FileTar}" ]; then
     printf "error downloading archive, end\n"
-    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
     exit 1
 else
     printf "Archive downloaded\n"
 fi
-tar -xzf "${TMPDIR}${FileTar}" -C ${TMPDIR}
 
-if ! [ -e "${TMPDIR}e2iplayer-python3" ]; then
-    printf "error extracting archive, end\n"
-    "${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"*
-    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
+# Only the IPTVPlayer Directory is needed, the rest of the Repository (Backup, tests, ...) is not unpacked.
+tar -xzf "${TMP}/${FileTar}" -C ${TMP} e2iplayer-python3/IPTVPlayer > /dev/null
+
+# Path to the unpacked E2iPlayer Source Package.
+EXTRACTED_SOURCE_PATH="${TMP}/e2iplayer-python3/IPTVPlayer"
+
+# Check it before the installed E2iPlayer gets deleted, otherwise the Box ends up without E2iPlayer.
+if [ ! -f $EXTRACTED_SOURCE_PATH/plugin.py ] ; then
+    echo -e "\n... ERROR ...\n$EXTRACTED_SOURCE_PATH is missing or incomplete ! \nThe installed E2iPlayer was not touched.\nrestart e2iplayer_install.sh.\n\n" >&2
+    "${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
     exit 1
 else
     printf "Archive extracted\n"
-    rm -f "${TMPDIR}${FileTar}"
+    "${NICE}" -n 19 rm -f "${TMP}/${FileTar}"
 fi
 
 if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
-    [ -e "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" ] && cp -rf "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" ${TMPDIR}
+    [ -e "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" ] && cp -rf "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" "${TMP}/"
 
     printf "Removed old version of E2Iplayer\n"
     "${NICE}" -n 19 rm -rf "${PLUGINPATH}IPTVPlayer"
 fi
 
-find "${TMPDIR}e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -rf {} + 2>/dev/null
-"${NICE}" -n 19 cp -rf "${TMPDIR}e2iplayer-python3/IPTVPlayer" "${PLUGINPATH}"
-[ -e "${TMPDIR}_subparser.so" ] && "${NICE}" -n 19 cp -rf "${TMPDIR}_subparser.so" "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/"
+find "${TMP}/e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -rf {} + 2>/dev/null
+"${NICE}" -n 19 cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "${PLUGINPATH}"
+[ -e "${TMP}/_subparser.so" ] && "${NICE}" -n 19 cp -rf "${TMP}/_subparser.so" "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/"
 
 if ! [ -e "${PLUGINPATH}IPTVPlayer" ]; then
     printf "error installing E2Iplayer, end\n"
-    printf "ABORT --- ( More Details in %s )\n" "$LOGFILE"
     exit 1
 else
     printf "E2Iplayer installed\n"
@@ -158,7 +167,7 @@ sleep 0.8
 if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
     printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
-    init 4 && sleep 2
+    { init 4; sleep 3; }
     sed -i '/config\.plugins\.iptvplayer\./d' "${SETTINGS}"
     sleep 1
     {
@@ -201,18 +210,21 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
         echo "config.plugins.iptvplayer.cookiesCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.jsCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.movieMetaDataCacheDeleteAfterDays=2"
-        echo "config.plugins.iptvplayer.mye2i_browser=edge_canary"
         echo "config.plugins.iptvplayer.extplayer_infobanner_clockformat=24"
         echo "config.plugins.iptvplayer.extplayer_skin=black-white"
         echo "config.plugins.iptvplayer.extplayer_subtitle_background=transparent"
         echo "config.plugins.iptvplayer.extplayer_subtitle_border_width=1"
         echo "config.plugins.iptvplayer.extplayer_subtitle_font_size=45"
         echo "config.plugins.iptvplayer.extplayer_subtitle_line_height=65"
+        echo "config.plugins.iptvplayer.host_list_titles=short"
         curl --help >/dev/null 2>&1 && echo "config.plugins.iptvplayer.http_downloader=curl"
         [ -n "${IconsSize:-}" ] && echo "config.plugins.iptvplayer.IconsSize=${IconsSize}"
         echo "config.plugins.iptvplayer.IPTVWebIterface=True"
         echo "config.plugins.iptvplayer.moviePlayerPickerMode=extended"
+        echo "config.plugins.iptvplayer.mye2i_browser=edge_canary"
+        echo "config.plugins.iptvplayer.mye2i_close_start_page=True"
         echo "config.plugins.iptvplayer.DownloadsDir=${MY_PATH}MoviePlayer/"
+        [ -n "${AdultPIN:-}" ] && echo "config.plugins.iptvplayer.pin=${AdultPIN}"
         echo "config.plugins.iptvplayer.remember_last_position=true"
         [ -d "${MyFile}" ] && echo "config.plugins.iptvplayer.Sciezkaurllist=${MyFile}"
         $pyInterpreter -c "import pycurl" &> /dev/null && echo "config.plugins.iptvplayer.usepycurl=True"
@@ -223,11 +235,12 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
     } >> "${SETTINGS}"
 fi
 
-init 3 && sleep 2
+{ init 3; sleep 3; }
 
 # Delete the remains.
 printf "\nDelete remains (*.tar.gz/*.zip and Directory e2iplayer-*) ...\n"
-"${NICE}" -n 19 rm -rf "${TMPDIR}e2iplayer-"* "${TMPDIR}python"*.gz "${TMPDIR}master."* "${TMPDIR}opkg-"* "${TMPDIR}_subparser.so"
+"${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"* "${TMP}/_subparser.so"
+[ -e "${WORKDIR}/tmp" ] && rmdir "${WORKDIR}/tmp" 2> /dev/null
 
 sync
-${DOWNLOADER} "http://localhost/web/powerstate?newstate=3" > /dev/null 2>&1
+${DOWNLOADER} "http://127.0.0.1/web/powerstate?newstate=3" > /dev/null 2>&1 || { init 4 ; sleep 3 ; init 3 ; }
