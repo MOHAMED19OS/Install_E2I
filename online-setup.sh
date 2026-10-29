@@ -7,11 +7,12 @@ command -v python3 >/dev/null 2>&1 && pyInterpreter=python3 || pyInterpreter=pyt
 # Configure where we can find things here #
 TMP='/var/volatile/tmp'
 WORKDIR=/home/root/_workdir # Can be changed as desired, e.g. on HDD to /media/hdd/_workdir or just /media/hdd/dirname_as_desired.
-PLUGINPATH='/usr/lib/enigma2/python/Plugins/Extensions/'
+PLUGINPATH='/usr/lib/enigma2/python/Plugins/Extensions'
 SETTINGS='/etc/enigma2/settings'
 URL='https://github.com/oe-mirrors/e2iplayer/archive/refs/heads'
 archRead=$(uname -m)
 NICE=/bin/nice
+NICE_ARGS="-n 19"
 
 # $TMP (/var/volatile/tmp) is a RAM Disk. On Boxes with little RAM (e.g. DM800SE) the Source Package
 # does not fit there ("No space left on device"), then use a tmp Directory in the Working Directory.
@@ -23,7 +24,7 @@ if [ -z "$TMP_FREE_KB" ] || [ "$TMP_FREE_KB" -lt "$TMP_NEEDED_KB" ] ; then
 fi
 
 # If the script was already running but ended with an Error, delete any remains.
-"${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
+"${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
 
 # Search for retObj.conf in specific directories instead of whole root "/"
 SourcePath=$(find /tmp /etc /media -type f -name "retObj.conf" 2>/dev/null | head -n 1)
@@ -57,7 +58,7 @@ TorrServerBinDir="${TorrServerDir}TorrServer"
 
 #########################
 DownTorrServer(){
-    [ -e "${TorrServerBinDir}" ] && "${NICE}" -n 19 rm -rf "${TorrServerBinDir}"
+    [ -e "${TorrServerBinDir}" ] && "${NICE}" "$NICE_ARGS" rm -rf "${TorrServerBinDir}"
     local TorrSerVersion="${1:-146}"
 
     case "$archRead" in
@@ -96,6 +97,10 @@ pkgInstall() {
 #########################
 FileTar="python3.tar.gz"
 
+IPTVSUBPARSER="$PLUGINPATH/IPTVPlayer/libs/iptvsubparser"
+SUBPARSER_BACKUP="$TMP/_subparser.so"
+rm -f "$SUBPARSER_BACKUP"
+
 printf "Downloading E2iPlayer plugin Please Wait ......\n"
 ${DOWNLOADER%-} "${TMP}/${FileTar}" "${URL}/${FileTar}"
 
@@ -115,25 +120,32 @@ EXTRACTED_SOURCE_PATH="${TMP}/e2iplayer-python3/IPTVPlayer"
 # Check it before the installed E2iPlayer gets deleted, otherwise the Box ends up without E2iPlayer.
 if [ ! -f $EXTRACTED_SOURCE_PATH/plugin.py ] ; then
     echo -e "\n... ERROR ...\n$EXTRACTED_SOURCE_PATH is missing or incomplete ! \nThe installed E2iPlayer was not touched.\nrestart e2iplayer_install.sh.\n\n" >&2
-    "${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
+    "${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
     exit 1
 else
     printf "Archive extracted\n"
-    "${NICE}" -n 19 rm -f "${TMP}/${FileTar}"
+    "${NICE}" "$NICE_ARGS" rm -f "${TMP}/${FileTar}"
 fi
 
-if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
-    [ -e "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" ] && cp -rf "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/_subparser.so" "${TMP}/"
+if [ -e "$PLUGINPATH/IPTVPlayer" ]; then
+	# keep the native subtitles parser (_subparser.so), it is not part of the source archive
+	if [ -e "$IPTVSUBPARSER/_subparser.so" ] ; then
+		$NICE "$NICE_ARGS" cp -f "$IPTVSUBPARSER/_subparser.so" "$SUBPARSER_BACKUP"
+	fi
 
     printf "Removed old version of E2Iplayer\n"
-    "${NICE}" -n 19 rm -rf "${PLUGINPATH}IPTVPlayer"
+    "${NICE}" "$NICE_ARGS" rm -rf "$PLUGINPATH/IPTVPlayer"
 fi
 
 find "${TMP}/e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -rf {} + 2>/dev/null
-"${NICE}" -n 19 cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "${PLUGINPATH}"
-[ -e "${TMP}/_subparser.so" ] && "${NICE}" -n 19 cp -rf "${TMP}/_subparser.so" "${PLUGINPATH}IPTVPlayer/libs/iptvsubparser/"
+"${NICE}" "$NICE_ARGS" cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "$PLUGINPATH/"
 
-if ! [ -e "${PLUGINPATH}IPTVPlayer" ]; then
+# restore the native subtitles parser saved above, unless the new E2iPlayer brings its own
+if [ -e "$SUBPARSER_BACKUP" ] && [ ! -e "$IPTVSUBPARSER/_subparser.so" ] ; then
+	$NICE "$NICE_ARGS" cp -f "$SUBPARSER_BACKUP" "$IPTVSUBPARSER/_subparser.so"
+fi
+
+if ! [ -e "$PLUGINPATH/IPTVPlayer" ]; then
     printf "error installing E2Iplayer, end\n"
     exit 1
 else
@@ -163,8 +175,13 @@ else
     DownTorrServer "$WebVersion"
 fi
 
+# link duktape, only if duk (duktape binary) exists in /usr/bin and not in the .../IPTVPlayer/bin directory, link it there.
+if [ -e /usr/bin/duk ] && [ ! -e "$PLUGINPATH/IPTVPlayer/bin/duk" ] ; then
+	ln -s /usr/bin/duk "$PLUGINPATH/IPTVPlayer/bin"
+fi
+
 sleep 0.8
-if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
+if [ -e "$PLUGINPATH/IPTVPlayer" ]; then
     printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
     { init 4; sleep 3; }
@@ -225,6 +242,7 @@ if [ -e "${PLUGINPATH}IPTVPlayer" ]; then
         echo "config.plugins.iptvplayer.mye2i_close_start_page=True"
         echo "config.plugins.iptvplayer.DownloadsDir=${MY_PATH}MoviePlayer/"
         [ -n "${AdultPIN:-}" ] && echo "config.plugins.iptvplayer.pin=${AdultPIN}"
+        echo "config.plugins.iptvplayer.preferred_quality=max"
         echo "config.plugins.iptvplayer.remember_last_position=true"
         [ -d "${MyFile}" ] && echo "config.plugins.iptvplayer.Sciezkaurllist=${MyFile}"
         $pyInterpreter -c "import pycurl" &> /dev/null && echo "config.plugins.iptvplayer.usepycurl=True"
@@ -239,7 +257,7 @@ fi
 
 # Delete the remains.
 printf "\nDelete remains (*.tar.gz/*.zip and Directory e2iplayer-*) ...\n"
-"${NICE}" -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"* "${TMP}/_subparser.so"
+"${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"* "$SUBPARSER_BACKUP"
 [ -e "${WORKDIR}/tmp" ] && rmdir "${WORKDIR}/tmp" 2> /dev/null
 
 sync
