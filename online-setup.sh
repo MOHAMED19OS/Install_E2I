@@ -12,7 +12,6 @@ SETTINGS='/etc/enigma2/settings'
 URL='https://github.com/oe-mirrors/e2iplayer/archive/refs/heads'
 archRead=$(uname -m)
 NICE=/bin/nice
-NICE_ARGS="-n 19"
 
 # $TMP (/var/volatile/tmp) is a RAM Disk. On Boxes with little RAM (e.g. DM800SE) the Source Package
 # does not fit there ("No space left on device"), then use a tmp Directory in the Working Directory.
@@ -24,7 +23,7 @@ if [ -z "$TMP_FREE_KB" ] || [ "$TMP_FREE_KB" -lt "$TMP_NEEDED_KB" ] ; then
 fi
 
 # If the script was already running but ended with an Error, delete any remains.
-"${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
+$NICE -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
 
 # Search for retObj.conf in specific directories instead of whole root "/"
 SourcePath=$(find /tmp /etc /media -type f -name "retObj.conf" 2>/dev/null | head -n 1)
@@ -58,7 +57,7 @@ TorrServerBinDir="${TorrServerDir}TorrServer"
 
 #########################
 DownTorrServer(){
-    [ -e "${TorrServerBinDir}" ] && "${NICE}" "$NICE_ARGS" rm -rf "${TorrServerBinDir}"
+    [ -e "${TorrServerBinDir}" ] && $NICE -n 19 rm -rf "${TorrServerBinDir}"
     local TorrSerVersion="${1:-146}"
 
     case "$archRead" in
@@ -120,29 +119,29 @@ EXTRACTED_SOURCE_PATH="${TMP}/e2iplayer-python3/IPTVPlayer"
 # Check it before the installed E2iPlayer gets deleted, otherwise the Box ends up without E2iPlayer.
 if [ ! -f $EXTRACTED_SOURCE_PATH/plugin.py ] ; then
     echo -e "\n... ERROR ...\n$EXTRACTED_SOURCE_PATH is missing or incomplete ! \nThe installed E2iPlayer was not touched.\nrestart e2iplayer_install.sh.\n\n" >&2
-    "${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
+    $NICE -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
     exit 1
 else
     printf "Archive extracted\n"
-    "${NICE}" "$NICE_ARGS" rm -f "${TMP}/${FileTar}"
+    $NICE -n 19 rm -f "${TMP}/${FileTar}"
 fi
 
 if [ -e "$PLUGINPATH/IPTVPlayer" ]; then
 	# keep the native subtitles parser (_subparser.so), it is not part of the source archive
 	if [ -e "$IPTVSUBPARSER/_subparser.so" ] ; then
-		$NICE "$NICE_ARGS" cp -f "$IPTVSUBPARSER/_subparser.so" "$SUBPARSER_BACKUP"
+		$NICE -n 19 cp -f "$IPTVSUBPARSER/_subparser.so" "$SUBPARSER_BACKUP"
 	fi
 
     printf "Removed old version of E2Iplayer\n"
-    "${NICE}" "$NICE_ARGS" rm -rf "$PLUGINPATH/IPTVPlayer"
+    $NICE -n 19 rm -rf "$PLUGINPATH/IPTVPlayer"
 fi
 
 find "${TMP}/e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -rf {} + 2>/dev/null
-"${NICE}" "$NICE_ARGS" cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "$PLUGINPATH/"
+$NICE -n 19 cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "$PLUGINPATH/"
 
 # restore the native subtitles parser saved above, unless the new E2iPlayer brings its own
 if [ -e "$SUBPARSER_BACKUP" ] && [ ! -e "$IPTVSUBPARSER/_subparser.so" ] ; then
-	$NICE "$NICE_ARGS" cp -f "$SUBPARSER_BACKUP" "$IPTVSUBPARSER/_subparser.so"
+	$NICE -n 19 cp -f "$SUBPARSER_BACKUP" "$IPTVSUBPARSER/_subparser.so"
 fi
 
 if ! [ -e "$PLUGINPATH/IPTVPlayer" ]; then
@@ -257,7 +256,7 @@ fi
 
 # Delete the remains.
 printf "\nDelete remains (*.tar.gz/*.zip and Directory e2iplayer-*) ...\n"
-"${NICE}" "$NICE_ARGS" rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"* "$SUBPARSER_BACKUP"
+$NICE -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"* "$SUBPARSER_BACKUP"
 [ -e "${WORKDIR}/tmp" ] && rmdir "${WORKDIR}/tmp" 2> /dev/null
 
 sync
