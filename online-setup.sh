@@ -7,7 +7,7 @@ command -v python3 >/dev/null 2>&1 && pyInterpreter=python3 || pyInterpreter=pyt
 # Configure where we can find things here #
 TMP='/var/volatile/tmp'
 WORKDIR=/home/root/_workdir # Can be changed as desired, e.g. on HDD to /media/hdd/_workdir or just /media/hdd/dirname_as_desired.
-PLUGINPATH='/usr/lib/enigma2/python/Plugins/Extensions'
+TARGET_PATH='/usr/lib/enigma2/python/Plugins/Extensions'
 SETTINGS='/etc/enigma2/settings'
 URL='https://github.com/oe-mirrors/e2iplayer/archive/refs/heads'
 archRead=$(uname -m)
@@ -96,7 +96,7 @@ pkgInstall() {
 #########################
 FileTar="python3.tar.gz"
 
-IPTVSUBPARSER="$PLUGINPATH/IPTVPlayer/libs/iptvsubparser"
+IPTVSUBPARSER="$TARGET_PATH/IPTVPlayer/libs/iptvsubparser"
 SUBPARSER_BACKUP="$TMP/_subparser.so"
 rm -f "$SUBPARSER_BACKUP"
 
@@ -121,30 +121,27 @@ if [ ! -f $EXTRACTED_SOURCE_PATH/plugin.py ] ; then
     echo -e "\n... ERROR ...\n$EXTRACTED_SOURCE_PATH is missing or incomplete ! \nThe installed E2iPlayer was not touched.\nrestart e2iplayer_install.sh.\n\n" >&2
     $NICE -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "${TMP}/opkg-"*
     exit 1
-else
-    printf "Archive extracted\n"
-    $NICE -n 19 rm -f "${TMP}/${FileTar}"
 fi
 
-if [ -e "$PLUGINPATH/IPTVPlayer" ]; then
+if [ -e "$TARGET_PATH/IPTVPlayer" ]; then
 	# keep the native subtitles parser (_subparser.so), it is not part of the source archive
 	if [ -e "$IPTVSUBPARSER/_subparser.so" ] ; then
 		$NICE -n 19 cp -f "$IPTVSUBPARSER/_subparser.so" "$SUBPARSER_BACKUP"
 	fi
 
     printf "Removed old version of E2Iplayer\n"
-    $NICE -n 19 rm -rf "$PLUGINPATH/IPTVPlayer"
+    $NICE -n 19 rm -rf "$TARGET_PATH/IPTVPlayer"
 fi
 
 find "${TMP}/e2iplayer-python3/IPTVPlayer" -type f -name "*xxx*.*" -exec rm -rf {} + 2>/dev/null
-$NICE -n 19 cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "$PLUGINPATH/"
+$NICE -n 19 cp -rf "${TMP}/e2iplayer-python3/IPTVPlayer" "$TARGET_PATH/"
 
 # restore the native subtitles parser saved above, unless the new E2iPlayer brings its own
 if [ -e "$SUBPARSER_BACKUP" ] && [ ! -e "$IPTVSUBPARSER/_subparser.so" ] ; then
 	$NICE -n 19 cp -f "$SUBPARSER_BACKUP" "$IPTVSUBPARSER/_subparser.so"
 fi
 
-if ! [ -e "$PLUGINPATH/IPTVPlayer" ]; then
+if ! [ -e "$TARGET_PATH/IPTVPlayer" ]; then
     printf "error installing E2Iplayer, end\n"
     exit 1
 else
@@ -174,13 +171,8 @@ else
     DownTorrServer "$WebVersion"
 fi
 
-# link duktape, only if duk (duktape binary) exists in /usr/bin and not in the .../IPTVPlayer/bin directory, link it there.
-if [ -e /usr/bin/duk ] && [ ! -e "$PLUGINPATH/IPTVPlayer/bin/duk" ] ; then
-	ln -s /usr/bin/duk "$PLUGINPATH/IPTVPlayer/bin"
-fi
-
 sleep 0.8
-if [ -e "$PLUGINPATH/IPTVPlayer" ]; then
+if [ ! -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
     printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
     { init 4; sleep 3; }
