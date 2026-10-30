@@ -172,7 +172,7 @@ else
 fi
 
 sleep 0.8
-if [ ! -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
+if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
     printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
     { init 4; sleep 3; }
