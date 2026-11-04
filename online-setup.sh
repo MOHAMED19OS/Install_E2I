@@ -219,6 +219,7 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         echo "config.plugins.iptvplayer.jsCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.movieMetaDataCacheDeleteAfterDays=2"
         echo "config.plugins.iptvplayer.extplayer_infobanner_clockformat=24"
+        echo "config.plugins.iptvplayer.extplayer_infobar_timeout=3"
         echo "config.plugins.iptvplayer.extplayer_skin=black-white"
         echo "config.plugins.iptvplayer.extplayer_subtitle_background=transparent"
         echo "config.plugins.iptvplayer.extplayer_subtitle_border_width=1"
@@ -241,6 +242,8 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         echo "config.plugins.iptvplayer.ytDefaultformat=9999"
         echo "config.plugins.iptvplayer.ytUseDF=False"
         echo "config.plugins.iptvplayer.ytVP9=True"
+        echo "config.plugins.iptvplayer.xtream_sort=az"
+        echo "config.plugins.iptvplayer.stalker_sort=az"
     } >> "${SETTINGS}"
 fi
 
