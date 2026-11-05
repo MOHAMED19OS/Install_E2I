@@ -234,7 +234,7 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         echo "config.plugins.iptvplayer.showinSystemMenu=False"
         echo "config.plugins.iptvplayer.skinforceallinternal=True"
         echo "config.plugins.iptvplayer.storageExpertMode=True"
-        if [ -n "${TorrServer_Enabled:-}" ]; then
+        if [ "${TorrServer_Enabled:-}" = "True" ]; then
             if [ "${MY_PATH}" != "/etc/enigma2/" ]; then
                 echo "config.plugins.iptvplayer.torrserver_cache_dir=${MY_PATH}IPTVCache/"
                 echo "config.plugins.iptvplayer.torrserver_cache_location=disk"
@@ -264,7 +264,7 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         echo "config.plugins.iptvplayer.mye2i_close_start_page=True"
         echo "config.plugins.iptvplayer.DownloadsDir=${MY_PATH}MoviePlayer/"
         [ -n "${AdultPIN:-}" ] && echo "config.plugins.iptvplayer.pin=${AdultPIN}"
-        echo "config.plugins.iptvplayer.preferred_quality=max"
+        [ -n "${Preferred_Quality:-}" ] && echo "config.plugins.iptvplayer.preferred_quality=${Preferred_Quality}"
         echo "config.plugins.iptvplayer.remember_last_position=true"
         [ -d "${MyFile}" ] && echo "config.plugins.iptvplayer.Sciezkaurllist=${MyFile}"
         $pyInterpreter -c "import pycurl" &> /dev/null && echo "config.plugins.iptvplayer.usepycurl=True"
