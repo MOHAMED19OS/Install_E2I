@@ -1,7 +1,36 @@
 #!/usr/bin/bash
 
-curl --help >/dev/null 2>&1 && DOWNLOADER="curl -L -J -s -o -" || DOWNLOADER="wget --no-check-certificate -q -O -"
 command -v python3 >/dev/null 2>&1 && pyInterpreter=python3 || pyInterpreter=python
+
+# Download Tool: curl if it works, otherwise wget (on some Images wget is only the BusyBox Applet with limited HTTPS).
+if curl --version > /dev/null 2>&1 ; then
+	DOWNLOADER=curl
+elif command -v wget > /dev/null 2>&1 ; then
+	DOWNLOADER=wget
+else
+	echo -e "\n... ERROR ...\nNeither curl nor wget found ! \nInstall one of them with Command;\nopkg install curl\nand start again online-setup.sh.\n\n" >&2
+	exit 1
+fi
+echo -e "Download Tool = $DOWNLOADER\n"
+
+# fetch URL -> writes the Answer to stdout (quiet), fails on HTTP Errors.
+fetch() {
+	if [ "$DOWNLOADER" = "curl" ] ; then
+		curl -fsL "$1"
+	else
+		wget -q -O - "$1"
+	fi
+}
+
+# download URL FILE [insecure] -> saves the Download as FILE, fails on HTTP Errors;
+# with a third Argument the Server Certificate is not checked.
+download() {
+	if [ "$DOWNLOADER" = "curl" ] ; then
+		curl -fSL --progress-bar ${3:+-k} -o "$2" "$1"
+	else
+		wget ${3:+--no-check-certificate} -O "$2" "$1"
+	fi
+}
 
 ###########################################
 # Configure where we can find things here #
@@ -74,7 +103,7 @@ DownTorrServer(){
 
     torrUrl="https://github.com/YouROK/TorrServer/releases/download/MatriX.${TorrSerVersion}/TorrServer-linux-${torrArch}"
 
-    ${DOWNLOADER%-} "${TorrServerBinDir}" "${torrUrl}"
+    download "${torrUrl}" "${TorrServerBinDir}"
     [ -e "${TorrServerBinDir}" ] && chmod +x "${TorrServerBinDir}" || printf "Error downloading TorrServer!\n"
 }
 
@@ -101,7 +130,7 @@ SUBPARSER_BACKUP="$TMP/_subparser.so"
 rm -f "$SUBPARSER_BACKUP"
 
 printf "Downloading E2iPlayer plugin Please Wait ......\n"
-${DOWNLOADER%-} "${TMP}/${FileTar}" "${URL}/${FileTar}"
+download "${URL}/${FileTar}" "${TMP}/${FileTar}"
 
 if ! [ -e "${TMP}/${FileTar}" ]; then
     printf "error downloading archive, end\n"
@@ -154,16 +183,17 @@ for i in "${arrVar[@]}"; do
     pkgInstall "$i"
 done
 
-TorrOutput=$(${DOWNLOADER} "https://github.com/YouROK/TorrServer/tags" | grep -oE 'MatriX\.[0-9.]+' | head -1)
-[ -z "$TorrOutput" ] && TorrOutput=$(${DOWNLOADER} "https://api.github.com/repos/YouROK/TorrServer/releases/latest" | grep -oE '"tag_name": *"[^"]+"')
+TorrOutput=$(fetch "https://github.com/YouROK/TorrServer/tags" | grep -oE 'MatriX\.[0-9.]+' | head -1)
+[ -z "$TorrOutput" ] && TorrOutput=$(fetch "https://api.github.com/repos/YouROK/TorrServer/releases/latest" | grep -oE '"tag_name": *"[^"]+"')
 
 WebVersion=$(echo "$TorrOutput" | grep -oE '[0-9]+(\.[0-9]+)*' | head -1)
+echo -e "TorrServer Web Version = $WebVersion\n"
 if [ -e "${TorrServerBinDir}" ]; then
     ! [ -x "${TorrServerBinDir}" ] && chmod +x "${TorrServerBinDir}"
     TorrVersion=$("${TorrServerBinDir}" --help 2>&1 | grep -oE 'TorrServer\s+MatriX\.[0-9.]+' | grep -oE '[0-9]+(\.[0-9]+)*')
 
     if [[ "${WebVersion}" == "${TorrVersion}" ]]; then
-        printf "TorrServer is Found :)\n" && sleep 0.8
+        echo -e "TorrServer is Found ($TorrVersion)\n" && sleep 0.8
     else
         DownTorrServer "$WebVersion"
     fi
@@ -255,4 +285,4 @@ $NICE -n 19 rm -rf "${TMP}/e2iplayer-"* "${TMP}/python"*.gz "${TMP}/master."* "$
 [ -e "${WORKDIR}/tmp" ] && rmdir "${WORKDIR}/tmp" 2> /dev/null
 
 sync
-${DOWNLOADER} "http://127.0.0.1/web/powerstate?newstate=3" > /dev/null 2>&1 || { init 4 ; sleep 3 ; init 3 ; }
+fetch "http://127.0.0.1/web/powerstate?newstate=3" > /dev/null 2>&1 || { init 4 ; sleep 3 ; init 3 ; }
