@@ -272,8 +272,8 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         echo "config.plugins.iptvplayer.ytDefaultformat=9999"
         echo "config.plugins.iptvplayer.ytUseDF=False"
         echo "config.plugins.iptvplayer.ytVP9=True"
-        echo "config.plugins.iptvplayer.xtream_sort=az"
-        echo "config.plugins.iptvplayer.stalker_sort=az"
+        # echo "config.plugins.iptvplayer.xtream_sort=az"
+        # echo "config.plugins.iptvplayer.stalker_sort=az"
     } >> "${SETTINGS}"
 fi
 
