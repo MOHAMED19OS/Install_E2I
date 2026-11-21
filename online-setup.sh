@@ -32,6 +32,9 @@ download() {
 	fi
 }
 
+stb_image="$(fetch http://127.0.0.1/web/deviceinfo | grep "\(<\|</\)e2distroversion" \
+ | tr -d '\n' | sed "s/.*<e2distroversion>\(.*\)<\/e2distroversion>.*/\\1\n/")"
+
 ###########################################
 # Configure where we can find things here #
 TMP='/var/volatile/tmp'
@@ -178,7 +181,9 @@ else
 fi
 
 sleep 3
-arrVar=("enigma2-plugin-extensions-e2iplayer-deps" "exteplayer3" "gstplayer" "hlsdl" "duktape" "$pyInterpreter-pycurl" "$pyInterpreter-json" "curl-impersonate" "$pyInterpreter-pycryptodome")
+
+arrVar=("enigma2-plugin-extensions-e2iplayer-deps" "exteplayer3" "gstplayer" "duktape" "$pyInterpreter-pycurl" "$pyInterpreter-json" "curl-impersonate" "$pyInterpreter-pycryptodome")
+[ "$stb_image" = "openpli" ] && arrVar+=("libcrypto-compat")
 for i in "${arrVar[@]}"; do
     pkgInstall "$i"
 done
