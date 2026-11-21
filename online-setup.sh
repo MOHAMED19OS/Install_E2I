@@ -202,7 +202,7 @@ else
 fi
 
 sleep 0.8
-if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
+if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] && ! grep -qs "config.plugins.iptvplayer.showinSystemMenu" ${SETTINGS}; then
     printf ":Your Device IS %s processor ...\n" "$archRead"
     echo "Add Setting To ${SETTINGS} ..."
     { init 4; sleep 3; }
@@ -228,7 +228,6 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] ; then
         [ -n "${Febbox_Token:-}" ] && echo "config.plugins.iptvplayer.showbox_febbox_token=${Febbox_Token}"
         echo "config.plugins.iptvplayer.CacheDir=${MY_PATH}IPTVCache/"
         echo "config.plugins.iptvplayer.ConfigDir=${MY_PATH}IPTVPlayer/"
-        echo "config.plugins.iptvplayer.configMenuView=categories"
         echo "config.plugins.iptvplayer.debug_max_size=2"
         echo "config.plugins.iptvplayer.debugprint=/tmp/iptv.dbg"
         echo "config.plugins.iptvplayer.showinSystemMenu=False"
