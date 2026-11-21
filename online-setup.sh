@@ -226,6 +226,8 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] && ! grep -qs "config.plugins.iptvpl
         [ -n "${ArabP2P_LOGIN:-}" ] && echo "config.plugins.iptvplayer.arabp2p_login=${ArabP2P_LOGIN}"
         [ -n "${ArabP2P_PASSWORD:-}" ] && echo "config.plugins.iptvplayer.arabp2p_password=${ArabP2P_PASSWORD}"
         [ -n "${Febbox_Token:-}" ] && echo "config.plugins.iptvplayer.showbox_febbox_token=${Febbox_Token}"
+        [ -n "${Xtream_Sort:-}" ] && echo "config.plugins.iptvplayer.xtream_sort=$Xtream_Sort"
+        [ -n "${Stalker_Sort:-}" ] && echo "config.plugins.iptvplayer.stalker_sort=$Stalker_Sort"
         echo "config.plugins.iptvplayer.CacheDir=${MY_PATH}IPTVCache/"
         echo "config.plugins.iptvplayer.ConfigDir=${MY_PATH}IPTVPlayer/"
         echo "config.plugins.iptvplayer.debug_max_size=2"
@@ -271,12 +273,9 @@ if [ -f $TARGET_PATH/IPTVPlayer/plugin.py ] && ! grep -qs "config.plugins.iptvpl
         echo "config.plugins.iptvplayer.ytDefaultformat=9999"
         echo "config.plugins.iptvplayer.ytUseDF=False"
         echo "config.plugins.iptvplayer.ytVP9=True"
-        # echo "config.plugins.iptvplayer.xtream_sort=az"
-        # echo "config.plugins.iptvplayer.stalker_sort=az"
     } >> "${SETTINGS}"
+    { init 3; sleep 3; }
 fi
-
-{ init 3; sleep 3; }
 
 # Delete the remains.
 printf "\nDelete remains (*.tar.gz/*.zip and Directory e2iplayer-*) ...\n"
